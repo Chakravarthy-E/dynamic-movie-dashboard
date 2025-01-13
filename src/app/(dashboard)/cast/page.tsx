@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,6 +45,11 @@ export default function CastPage() {
     place: "",
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<keyof MovieCast | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [filterPlace, setFilterPlace] = useState<string>("");
+
   const handleAddCast = () => {
     if (!castForm.name || !castForm.email || !selectedMovieId) {
       toast({
@@ -72,12 +77,29 @@ export default function CastPage() {
 
   const allCastMembers = movies.flatMap((movie) => movie.cast);
 
-  const filteredCastMembers = selectedMovieId
-    ? allCastMembers.filter((cast) => cast.movieId === selectedMovieId)
-    : allCastMembers;
+  // Filter by search query and place
+  const filteredCastMembers = allCastMembers
+    .filter((cast) =>
+      searchQuery
+        ? cast.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          cast.email.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    )
+    .filter((cast) => (filterPlace ? cast.place === filterPlace : true));
+
+  // Sort cast members
+  const sortedCastMembers = sortKey
+    ? [...filteredCastMembers].sort((a, b) => {
+        const compare =
+          a[sortKey]?.toString().localeCompare(b[sortKey]?.toString() || "") ||
+          0;
+        return sortOrder === "asc" ? compare : -compare;
+      })
+    : filteredCastMembers;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold">Manage Cast Members</h2>
 
@@ -149,11 +171,50 @@ export default function CastPage() {
         </Dialog>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <Input
+          placeholder="Search by name or email"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-1/3"
+        />
+
+        <Select value={filterPlace} onValueChange={setFilterPlace}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by place" />
+          </SelectTrigger>
+          <SelectContent>
+            {[...new Set(allCastMembers.map((cast) => cast.place))].map(
+              (place) => (
+                <SelectItem key={place} value={place}>
+                  {place}
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Movie</TableHead>
+              <TableHead
+                onClick={() =>
+                  setSortKey("movieId") ||
+                  setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                }
+              >
+                Movie
+                {sortKey === "movieId" &&
+                  (sortOrder === "asc" ? (
+                    <ChevronUp className="inline" />
+                  ) : (
+                    <ChevronDown className="inline" />
+                  ))}
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
@@ -161,14 +222,14 @@ export default function CastPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCastMembers.length === 0 ? (
+            {sortedCastMembers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center">
                   No cast members found.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCastMembers.map((cast) => (
+              sortedCastMembers.map((cast) => (
                 <TableRow key={cast.id}>
                   <TableCell>
                     {movies.find((movie) => movie.id === cast.movieId)?.title ||
